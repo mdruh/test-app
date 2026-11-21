@@ -1,9 +1,10 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>GeoChat — Serverless Proximity Map Messaging</title>
+    <title>Rwein Soft Tech</title>
     
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -96,6 +97,11 @@
             backdrop-filter: blur(4px);
             border-top-left-radius: 8px;
         }
+
+        /* Mirror local camera preview */
+        #local-video {
+            transform: scaleX(-1);
+        }
     </style>
 </head>
 <body class="bg-slate-900 text-slate-800 antialiased relative">
@@ -179,7 +185,7 @@
         <div class="pointer-events-auto flex items-center gap-2 ml-auto">
             <button onclick="toggleNearbyDrawer()" class="bg-slate-900 hover:bg-slate-800 text-white shadow-lg shadow-slate-900/20 px-4 py-3 rounded-2xl flex items-center gap-2 text-xs sm:text-sm font-semibold transition transform active:scale-95">
                 <i class="ph-bold ph-users-three text-lg text-emerald-400"></i>
-                <span>Nearby</span>
+                <span>People</span>
                 <span id="nearby-count-badge" class="bg-emerald-600 text-white text-[11px] font-bold px-2 py-0.5 rounded-full">0</span>
             </button>
 
@@ -189,7 +195,7 @@
         </div>
     </div>
 
-    <!-- INITIAL / EDIT PROFILE SETUP MODAL (Serverless Ephemeral Identity) -->
+    <!-- INITIAL / EDIT PROFILE SETUP MODAL (Persistent Local Profile) -->
     <div id="setup-modal" class="fixed inset-0 z-[1000] bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-4 transition-opacity duration-300">
         <div class="bg-white w-full max-w-md rounded-3xl shadow-2xl border border-slate-100 overflow-hidden transform transition-all">
             <!-- Top Gradient Banner -->
@@ -201,7 +207,7 @@
                     📡
                 </div>
                 <h2 class="text-xl font-bold tracking-tight">GeoChat Live Radar</h2>
-                <p class="text-blue-100 text-xs sm:text-sm mt-1">100% Real GPS • Zero Bots • No Account or Database.</p>
+                <p class="text-blue-100 text-xs sm:text-sm mt-1">100% Real GPS • Saved Locally • P2P Audio & Video.</p>
             </div>
 
             <!-- Form Content -->
@@ -228,32 +234,32 @@
                         class="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20 outline-none text-sm text-slate-700 transition">
                 </div>
 
-                <!-- Real GPS & Serverless Mesh Info Box -->
+                <!-- Real GPS & Local Storage Info Box -->
                 <div class="bg-emerald-50/80 p-3.5 rounded-2xl border border-emerald-200/80 flex items-start gap-2.5">
-                    <i class="ph-fill ph-gps-fix text-emerald-600 text-lg shrink-0 mt-0.5"></i>
+                    <i class="ph-fill ph-hard-drives text-emerald-600 text-lg shrink-0 mt-0.5"></i>
                     <p class="text-[11px] text-emerald-900 leading-relaxed">
-                        <strong>Real-Time Hardware GPS:</strong> Broadcasts your live coordinates directly to nearby devices over a serverless WebSocket mesh. Nothing is stored in any database.
+                        <strong>Zero-Database Local Storage:</strong> Your profile, discovered contacts, and chat history are saved directly on your device so everything restores automatically next time you visit.
                     </p>
                 </div>
 
                 <!-- Submit Button -->
                 <button type="submit" class="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold text-sm shadow-lg shadow-blue-600/25 flex items-center justify-center gap-2 transition transform active:scale-[0.98]">
-                    <span>Go Live on Real GPS Map</span>
+                    <span>Save & Go Live on Real GPS</span>
                     <i class="ph-bold ph-paper-plane-tilt text-base"></i>
                 </button>
             </form>
         </div>
     </div>
 
-    <!-- NEARBY RADAR DRAWER (Slide-over list of real active users around GPS) -->
+    <!-- NEARBY RADAR DRAWER (Slide-over list of online & offline users) -->
     <div id="nearby-drawer" class="fixed inset-y-0 right-0 z-[800] w-full max-w-sm bg-white/95 backdrop-blur-xl shadow-2xl border-l border-slate-200/80 transform translate-x-full transition-transform duration-300 ease-out flex flex-col">
         <div class="p-5 border-b border-slate-100 flex items-center justify-between">
             <div>
                 <h3 class="font-bold text-slate-900 text-base flex items-center gap-2">
                     <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                    Real Nearby Users
+                    Nearby & Saved People
                 </h3>
-                <p class="text-xs text-slate-500 mt-0.5">Live devices broadcasting within ~20 km</p>
+                <p id="nearby-drawer-subtitle" class="text-xs text-slate-500 mt-0.5">Live online & saved offline contacts</p>
             </div>
             <button onclick="toggleNearbyDrawer(false)" class="w-9 h-9 rounded-xl bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-600 transition">
                 <i class="ph-bold ph-x text-lg"></i>
@@ -261,7 +267,7 @@
         </div>
 
         <div id="nearby-users-list" class="flex-1 overflow-y-auto p-4 space-y-2.5 custom-scrollbar">
-            <!-- Dynamically populated real user cards -->
+            <!-- Dynamically populated user cards -->
         </div>
 
         <div class="p-4 bg-slate-50 border-t border-slate-100">
@@ -272,51 +278,58 @@
         </div>
     </div>
 
-    <!-- DIRECT MESSAGING & PROFILE DRAWER/MODAL -->
-    <div id="chat-drawer" class="fixed inset-x-0 bottom-0 sm:inset-x-auto sm:right-6 sm:bottom-6 z-[900] w-full sm:w-[400px] h-[82vh] sm:h-[560px] bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl border border-slate-200/90 transform translate-y-full sm:translate-y-[120%] transition-transform duration-300 ease-out flex flex-col overflow-hidden">
+    <!-- DIRECT MESSAGING & CALLING DRAWER/MODAL -->
+    <div id="chat-drawer" class="fixed inset-x-0 bottom-0 sm:inset-x-auto sm:right-6 sm:bottom-6 z-[900] w-full sm:w-[410px] h-[84vh] sm:h-[580px] bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl border border-slate-200/90 transform translate-y-full sm:translate-y-[120%] transition-transform duration-300 ease-out flex flex-col overflow-hidden">
         
-        <!-- Chat Header with Peer Profile Info -->
-        <div class="p-4 bg-gradient-to-r from-slate-900 to-slate-800 text-white flex items-center justify-between shrink-0">
+        <!-- Chat Header with Peer Profile Info & Audio/Video Call Buttons -->
+        <div class="p-4 bg-gradient-to-r from-slate-900 to-slate-800 text-white flex items-center justify-between gap-2 shrink-0">
             <div class="flex items-center gap-3 min-w-0">
                 <div class="relative shrink-0">
                     <div id="chat-peer-avatar" class="w-11 h-11 rounded-2xl bg-white/15 flex items-center justify-center text-2xl shadow-inner border border-white/10">
                         😎
                     </div>
-                    <span class="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-emerald-400 border-2 border-slate-900"></span>
+                    <span id="chat-peer-online-dot" class="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-emerald-400 border-2 border-slate-900"></span>
                 </div>
                 <div class="min-w-0">
-                    <div class="flex items-center gap-2">
+                    <div class="flex items-center gap-1.5">
                         <h4 id="chat-peer-name" class="font-bold text-sm sm:text-base truncate">User</h4>
-                        <span id="chat-peer-distance" class="shrink-0 text-[10px] font-bold bg-emerald-500/30 text-emerald-200 border border-emerald-400/30 px-2 py-0.5 rounded-full">
-                            -- away
+                        <span id="chat-peer-presence-badge" class="shrink-0 text-[10px] font-bold bg-emerald-500/30 text-emerald-200 border border-emerald-400/30 px-2 py-0.5 rounded-full">
+                            Online
                         </span>
                     </div>
-                    <p id="chat-peer-status" class="text-xs text-slate-300 truncate mt-0.5">Live on GPS</p>
+                    <p id="chat-peer-status" class="text-xs text-slate-300 truncate mt-0.5">-- away • Live on GPS</p>
                 </div>
             </div>
 
+            <!-- Action Buttons: Audio Call, Video Call, Map Pin, Close -->
             <div class="flex items-center gap-1.5 shrink-0">
-                <button onclick="flyToActivePeer()" title="Locate Peer on Map" class="w-8 h-8 rounded-xl bg-white/10 hover:bg-white/20 flex items-center justify-center text-slate-200 transition">
-                    <i class="ph-bold ph-map-pin"></i>
+                <button id="btn-audio-call" onclick="initiateWebRTCCall('audio')" title="Start Audio Call" class="w-9 h-9 rounded-xl bg-emerald-500/20 hover:bg-emerald-500 text-emerald-300 hover:text-white border border-emerald-400/30 flex items-center justify-center transition transform active:scale-95">
+                    <i class="ph-fill ph-phone text-base"></i>
                 </button>
-                <button onclick="closeChatDrawer()" title="Close Chat" class="w-8 h-8 rounded-xl bg-white/10 hover:bg-rose-500/80 flex items-center justify-center text-white transition">
-                    <i class="ph-bold ph-x"></i>
+                <button id="btn-video-call" onclick="initiateWebRTCCall('video')" title="Start Video Call" class="w-9 h-9 rounded-xl bg-blue-500/20 hover:bg-blue-500 text-blue-300 hover:text-white border border-blue-400/30 flex items-center justify-center transition transform active:scale-95">
+                    <i class="ph-fill ph-video-camera text-base"></i>
+                </button>
+                <button onclick="flyToActivePeer()" title="Locate Peer on Map" class="w-8 h-9 rounded-xl bg-white/10 hover:bg-white/20 flex items-center justify-center text-slate-200 transition">
+                    <i class="ph-bold ph-map-pin text-sm"></i>
+                </button>
+                <button onclick="closeChatDrawer()" title="Close Chat" class="w-8 h-9 rounded-xl bg-white/10 hover:bg-rose-500/80 flex items-center justify-center text-white transition">
+                    <i class="ph-bold ph-x text-sm"></i>
                 </button>
             </div>
         </div>
 
-        <!-- Ephemeral Session Notice -->
+        <!-- Local Storage & P2P Notice -->
         <div class="bg-blue-50/90 border-b border-blue-100 px-4 py-2 flex items-center justify-between text-[11px] text-blue-700 shrink-0">
             <span class="flex items-center gap-1.5 font-medium">
                 <i class="ph-fill ph-shield-check text-blue-600 text-sm"></i>
-                Real-Time Serverless P2P Chat • No Database
+                P2P Chat & Calls • Saved Locally
             </span>
             <button onclick="shareMyLocationPinInChat()" class="font-bold underline hover:text-blue-900">Send GPS Pin</button>
         </div>
 
         <!-- Chat Messages Container -->
         <div id="chat-messages" class="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-50/70 custom-scrollbar">
-            <!-- Real messages injected dynamically -->
+            <!-- Real messages & call logs injected dynamically -->
         </div>
 
         <!-- Real-Time Peer Typing Indicator -->
@@ -333,7 +346,7 @@
         <div class="px-3 py-2 bg-white border-t border-slate-100 flex items-center gap-1.5 overflow-x-auto no-scrollbar shrink-0">
             <button type="button" onclick="sendQuickReply('👋 Hey! Saw you nearby on GeoChat!')" class="shrink-0 text-[11px] font-medium bg-slate-100 hover:bg-blue-50 hover:text-blue-700 text-slate-600 px-2.5 py-1 rounded-full transition">👋 Hey neighbor!</button>
             <button type="button" onclick="sendQuickReply('📍 Where around here are you?')" class="shrink-0 text-[11px] font-medium bg-slate-100 hover:bg-blue-50 hover:text-blue-700 text-slate-600 px-2.5 py-1 rounded-full transition">📍 Where are you?</button>
-            <button type="button" onclick="sendQuickReply('☕ Want to meet up nearby?')" class="shrink-0 text-[11px] font-medium bg-slate-100 hover:bg-blue-50 hover:text-blue-700 text-slate-600 px-2.5 py-1 rounded-full transition">☕ Meet up?</button>
+            <button type="button" onclick="sendQuickReply('📞 Free for a quick call?')" class="shrink-0 text-[11px] font-medium bg-slate-100 hover:bg-blue-50 hover:text-blue-700 text-slate-600 px-2.5 py-1 rounded-full transition">📞 Quick call?</button>
         </div>
 
         <!-- Message Input Form -->
@@ -346,17 +359,99 @@
         </form>
     </div>
 
+    <!-- WEBRTC AUDIO & VIDEO CALL OVERLAY MODAL -->
+    <div id="call-modal" class="hidden fixed inset-0 z-[1200] bg-slate-950/95 backdrop-blur-xl flex flex-col justify-between p-6 text-white transition-all">
+        <!-- Remote Video Stream (Full background in video mode) -->
+        <video id="remote-video" autoplay playsinline class="hidden absolute inset-0 w-full h-full object-cover z-0"></video>
+        <audio id="remote-audio" autoplay playsinline class="hidden"></audio>
+
+        <!-- Dark gradient vignette over video for crisp legibility -->
+        <div id="call-video-vignette" class="hidden absolute inset-0 bg-gradient-to-b from-slate-950/70 via-transparent to-slate-950/85 z-10 pointer-events-none"></div>
+
+        <!-- Top Call Status Bar -->
+        <div class="relative z-20 flex items-center justify-between">
+            <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/15 text-xs font-semibold">
+                <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                <span id="call-type-label">P2P Encrypted Call</span>
+            </div>
+            <div id="call-timer" class="px-3 py-1.5 rounded-full bg-black/40 backdrop-blur-md text-xs font-mono font-bold tracking-wider text-emerald-300">
+                00:00
+            </div>
+        </div>
+
+        <!-- Center Caller Identity / Audio Mode Avatar -->
+        <div id="call-center-stage" class="relative z-20 flex flex-col items-center justify-center text-center my-auto space-y-4">
+            <div class="relative">
+                <div id="call-avatar-ring" class="w-28 h-28 rounded-full bg-gradient-to-tr from-blue-500 to-indigo-600 p-1 shadow-2xl user-pulse">
+                    <div id="call-peer-avatar" class="w-full h-full rounded-full bg-slate-900 flex items-center justify-center text-5xl">
+                        😎
+                    </div>
+                </div>
+            </div>
+            <div>
+                <h3 id="call-peer-name" class="text-2xl font-bold tracking-tight">User</h3>
+                <p id="call-status-text" class="text-sm text-slate-300 mt-1 font-medium">Calling...</p>
+            </div>
+        </div>
+
+        <!-- Picture-in-Picture Local Video Preview -->
+        <div id="local-video-wrapper" class="hidden fixed top-20 right-5 z-30 w-28 sm:w-36 h-40 sm:h-48 rounded-2xl overflow-hidden shadow-2xl border-2 border-white/25 bg-slate-900">
+            <video id="local-video" autoplay muted playsinline class="w-full h-full object-cover"></video>
+        </div>
+
+        <!-- Bottom Call Controls -->
+        <div class="relative z-20 flex flex-col items-center gap-4 pb-4">
+            <!-- Incoming Call Controls (Accept / Decline) -->
+            <div id="incoming-call-controls" class="hidden flex items-center justify-center gap-8">
+                <button onclick="rejectIncomingCall()" class="flex flex-col items-center gap-2 group">
+                    <div class="w-16 h-16 rounded-full bg-rose-600 hover:bg-rose-500 text-white flex items-center justify-center shadow-lg shadow-rose-600/40 transition transform group-active:scale-90">
+                        <i class="ph-fill ph-phone-disconnect text-2xl"></i>
+                    </div>
+                    <span class="text-xs font-semibold text-slate-300">Decline</span>
+                </button>
+
+                <button onclick="acceptIncomingCall()" class="flex flex-col items-center gap-2 group">
+                    <div class="w-16 h-16 rounded-full bg-emerald-500 hover:bg-emerald-400 text-white flex items-center justify-center shadow-lg shadow-emerald-500/40 animate-bounce transition transform group-active:scale-90">
+                        <i id="accept-call-icon" class="ph-fill ph-phone text-2xl"></i>
+                    </div>
+                    <span class="text-xs font-semibold text-emerald-300">Accept</span>
+                </button>
+            </div>
+
+            <!-- Active / Outgoing Call Controls (Mute, Camera Toggle, End Call) -->
+            <div id="active-call-controls" class="flex items-center justify-center gap-5 bg-white/10 backdrop-blur-xl border border-white/15 px-6 py-3.5 rounded-3xl shadow-2xl">
+                <button id="btn-toggle-mic" onclick="toggleCallMic()" title="Mute / Unmute" class="w-12 h-12 rounded-2xl bg-white/15 hover:bg-white/25 text-white flex items-center justify-center transition active:scale-90">
+                    <i id="icon-call-mic" class="ph-fill ph-microphone text-xl"></i>
+                </button>
+
+                <button id="btn-toggle-cam" onclick="toggleCallCamera()" title="Camera On / Off" class="hidden w-12 h-12 rounded-2xl bg-white/15 hover:bg-white/25 text-white flex items-center justify-center transition active:scale-90">
+                    <i id="icon-call-cam" class="ph-fill ph-video-camera text-xl"></i>
+                </button>
+
+                <button onclick="endCurrentCall(true)" title="End Call" class="w-14 h-12 rounded-2xl bg-rose-600 hover:bg-rose-500 text-white flex items-center justify-center shadow-lg shadow-rose-600/30 transition active:scale-90">
+                    <i class="ph-fill ph-phone-disconnect text-2xl"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
     <script>
         /**
-         * GeoChat Live — 100% Real GPS & Serverless Proximity Mesh Engine
-         * - Zero bots, zero simulated users, zero database, zero account registration.
-         * - Uses standard OpenStreetMap & Esri Satellite tiles (no API key watermarks).
-         * - Uses real hardware GPS via navigator.geolocation.watchPosition.
-         * - Discovers real nearby devices via ephemeral MQTT-over-WebSocket geographic grid topics
-         *   AND instant same-device BroadcastChannel sync.
+         * GeoChat Live — Real GPS, Local Persistence, Online/Offline Presence & WebRTC Calls
+         * - Persists user profile, discovered peers, and all chat histories in localStorage.
+         * - Restores saved user profile & history automatically on subsequent visits.
+         * - Tracks real-time Online / Offline state on the map and Nearby/People drawer.
+         * - Supports real Peer-to-Peer WebRTC Audio & Video Calls signaled over MQTT + BroadcastChannel.
          */
 
-        // --- 1. APPLICATION STATE ---
+        // --- 1. LOCAL STORAGE KEYS & APPLICATION STATE ---
+        const STORAGE_KEYS = {
+            USER: 'geochat_saved_user_v1',
+            PEERS: 'geochat_saved_peers_v1',
+            MESSAGES: 'geochat_saved_messages_v1',
+            UNREAD: 'geochat_saved_unread_v1'
+        };
+
         const AVATAR_OPTIONS = ['😎', '🦊', '🚀', '🎧', '🐼', '⚡', '🌿', '🎨', '🐱', '🧭', '☕', '🦄'];
         const PEER_COLORS = [
             'from-blue-500 to-indigo-600',
@@ -367,15 +462,24 @@
             'from-cyan-500 to-sky-600'
         ];
 
-        // Generate an ephemeral session ID per browser tab/device
-        const EPHEMERAL_USER_ID = 'usr_' + Math.random().toString(36).substring(2, 10) + '_' + Date.now().toString(36);
+        const ICE_SERVERS = {
+            iceServers: [
+                { urls: 'stun:stun.l.google.com:19302' },
+                { urls: 'stun:stun1.l.google.com:19302' },
+                { urls: 'stun:stun2.l.google.com:19302' }
+            ]
+        };
+
+        function generatePermanentUserId() {
+            return 'usr_' + Math.random().toString(36).substring(2, 10) + '_' + Date.now().toString(36);
+        }
 
         const state = {
             initialized: false,
             hasRealGPS: false,
             tileLayerMode: 'street', // 'street' | 'satellite'
             currentUser: {
-                id: EPHEMERAL_USER_ID,
+                id: generatePermanentUserId(),
                 name: '',
                 avatar: '😎',
                 status: 'Online on GPS 📍',
@@ -383,11 +487,29 @@
                 lng: null,
                 accuracy: null
             },
-            peers: {},            // { [peerId]: { id, name, avatar, status, lat, lng, accuracy, distance, lastSeen, color } }
+            peers: {},            // { [peerId]: { id, name, avatar, status, lat, lng, accuracy, distance, lastSeen, isOnline, color } }
             activeChatPeerId: null,
-            messages: {},         // { [peerId]: [ { id, sender: 'me'|'peer', text, time, type } ] }
+            messages: {},         // { [peerId]: [ { id, sender: 'me'|'peer'|'system', text, time, type } ] }
             unreadCounts: {},     // { [peerId]: number }
             subscribedTopics: new Set()
+        };
+
+        // WebRTC Call State
+        const callState = {
+            active: false,
+            direction: null,      // 'outgoing' | 'incoming'
+            mode: 'audio',        // 'audio' | 'video'
+            peerId: null,
+            pc: null,
+            localStream: null,
+            remoteStream: null,
+            pendingOffer: null,
+            pendingCandidates: [],
+            micEnabled: true,
+            camEnabled: true,
+            connectedAt: null,
+            timerInterval: null,
+            ringTimeout: null
         };
 
         // Leaflet Map & Layer References
@@ -403,15 +525,121 @@
         let mqttClient = null;
         let broadcastChannel = null;
         let heartbeatInterval = null;
-        let stalePeerCleanupInterval = null;
+        let offlineCheckInterval = null;
         let lastTypingSentAt = 0;
         let peerTypingTimeout = null;
 
-        // --- 2. INITIALIZATION & PROFILE SETUP ---
+        // --- 2. LOCAL STORAGE PERSISTENCE HELPERS ---
+        function saveUserToStorage() {
+            try {
+                localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(state.currentUser));
+            } catch (e) {
+                console.warn('Could not save user profile to localStorage:', e);
+            }
+        }
+
+        function savePeersToStorage() {
+            try {
+                localStorage.setItem(STORAGE_KEYS.PEERS, JSON.stringify(state.peers));
+            } catch (e) {
+                console.warn('Could not save peers to localStorage:', e);
+            }
+        }
+
+        function saveMessagesToStorage() {
+            try {
+                localStorage.setItem(STORAGE_KEYS.MESSAGES, JSON.stringify(state.messages));
+                localStorage.setItem(STORAGE_KEYS.UNREAD, JSON.stringify(state.unreadCounts));
+            } catch (e) {
+                console.warn('Could not save messages to localStorage:', e);
+            }
+        }
+
+        function loadPersistedData() {
+            try {
+                const rawPeers = localStorage.getItem(STORAGE_KEYS.PEERS);
+                if (rawPeers) {
+                    const parsedPeers = JSON.parse(rawPeers);
+                    // On fresh load, mark previously saved peers as offline until a live heartbeat arrives
+                    Object.keys(parsedPeers).forEach(pid => {
+                        parsedPeers[pid].isOnline = false;
+                    });
+                    state.peers = parsedPeers;
+                }
+
+                const rawMessages = localStorage.getItem(STORAGE_KEYS.MESSAGES);
+                if (rawMessages) {
+                    state.messages = JSON.parse(rawMessages);
+                }
+
+                const rawUnread = localStorage.getItem(STORAGE_KEYS.UNREAD);
+                if (rawUnread) {
+                    state.unreadCounts = JSON.parse(rawUnread);
+                }
+
+                const rawUser = localStorage.getItem(STORAGE_KEYS.USER);
+                if (rawUser) {
+                    const savedUser = JSON.parse(rawUser);
+                    if (savedUser && savedUser.name) {
+                        state.currentUser = {
+                            ...state.currentUser,
+                            ...savedUser,
+                            id: savedUser.id || generatePermanentUserId()
+                        };
+                        return true;
+                    }
+                }
+            } catch (e) {
+                console.warn('Error loading persisted state:', e);
+            }
+            return false;
+        }
+
+        // --- 3. INITIALIZATION & PROFILE SETUP ---
         window.onload = function() {
-            renderAvatarPicker();
             initMap();
+            const hasSavedProfile = loadPersistedData();
+            renderAvatarPicker();
+
+            if (hasSavedProfile) {
+                // Auto-restore saved user profile without forcing recreation
+                activateLoggedInSession(true);
+            } else {
+                openSetupModal(false);
+            }
         };
+
+        function activateLoggedInSession(isRestored = false) {
+            document.getElementById('header-user-avatar').textContent = state.currentUser.avatar;
+            document.getElementById('header-user-name').textContent = state.currentUser.name;
+            document.getElementById('header-user-status').textContent = state.currentUser.status;
+
+            closeSetupModal();
+            document.getElementById('app-header').classList.remove('hidden');
+            document.getElementById('bottom-controls').classList.remove('hidden');
+
+            // Render previously saved offline peers on the map & list right away
+            Object.values(state.peers).forEach(peer => {
+                renderPeerMarker(peer);
+            });
+            renderNearbyList();
+
+            // If user had a last known GPS position, center map there initially while waiting for fresh GPS fix
+            if (state.currentUser.lat !== null && state.currentUser.lng !== null) {
+                updateCurrentUserMarker();
+                map.setView([state.currentUser.lat, state.currentUser.lng], 15);
+            }
+
+            if (!state.initialized) {
+                state.initialized = true;
+                initServerlessMesh();
+                startRealGPSTracking();
+            }
+
+            if (isRestored) {
+                showToast(`Welcome back, ${state.currentUser.name}! Profile & chats restored.`, 'success');
+            }
+        }
 
         function renderAvatarPicker() {
             const grid = document.getElementById('avatar-grid');
@@ -435,6 +663,7 @@
         function openSetupModal(isEditing = false) {
             const modal = document.getElementById('setup-modal');
             const closeBtn = document.getElementById('close-setup-btn');
+            renderAvatarPicker();
             if (isEditing) {
                 closeBtn.classList.remove('hidden');
                 document.getElementById('input-name').value = state.currentUser.name;
@@ -456,41 +685,33 @@
 
             state.currentUser.name = nameInput;
             state.currentUser.status = statusInput || 'Live on GeoChat 📍';
-
-            document.getElementById('header-user-avatar').textContent = state.currentUser.avatar;
-            document.getElementById('header-user-name').textContent = state.currentUser.name;
-            document.getElementById('header-user-status').textContent = state.currentUser.status;
-
-            closeSetupModal();
-            document.getElementById('app-header').classList.remove('hidden');
-            document.getElementById('bottom-controls').classList.remove('hidden');
+            saveUserToStorage();
 
             if (!state.initialized) {
-                state.initialized = true;
-                initServerlessMesh();
-                startRealGPSTracking();
+                activateLoggedInSession(false);
             } else {
+                document.getElementById('header-user-avatar').textContent = state.currentUser.avatar;
+                document.getElementById('header-user-name').textContent = state.currentUser.name;
+                document.getElementById('header-user-status').textContent = state.currentUser.status;
+                closeSetupModal();
                 updateCurrentUserMarker();
                 broadcastPresenceHeartbeat();
-                showToast('Profile updated on live GPS radar', 'success');
+                showToast('Profile saved & updated on live GPS radar', 'success');
             }
         }
 
-        // --- 3. KEYLESS OPENSTREETMAP & SATELLITE TILE ENGINE ---
+        // --- 4. KEYLESS OPENSTREETMAP & SATELLITE TILE ENGINE ---
         function initMap() {
-            // Initialize world view until real hardware GPS locks
             map = L.map('map', {
                 zoomControl: false,
                 attributionControl: true
             }).setView([20.0, 0.0], 2);
 
-            // 100% Free, Keyless OpenStreetMap Standard Street Tiles (No API key watermark)
             streetTileLayer = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
                 maxZoom: 19,
                 attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
             });
 
-            // 100% Free, Keyless Esri World Imagery Satellite Tiles
             satelliteTileLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
                 maxZoom: 19,
                 attribution: 'Tiles &copy; Esri'
@@ -516,7 +737,7 @@
             }
         }
 
-        // --- 4. 100% REAL DEVICE GPS TRACKING ---
+        // --- 5. 100% REAL DEVICE GPS TRACKING ---
         function startRealGPSTracking() {
             if (!('geolocation' in navigator)) {
                 showGPSError('Your browser does not support Geolocation.');
@@ -540,6 +761,7 @@
                     state.currentUser.lat = latitude;
                     state.currentUser.lng = longitude;
                     state.currentUser.accuracy = Math.round(accuracy || 20);
+                    saveUserToStorage();
 
                     const latDir = latitude >= 0 ? 'N' : 'S';
                     const lngDir = longitude >= 0 ? 'E' : 'W';
@@ -594,7 +816,7 @@
                 <div class="relative flex flex-col items-center cursor-pointer" style="width: 72px; height: 78px;">
                     <div class="w-12 h-12 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 p-0.5 shadow-xl user-pulse flex items-center justify-center">
                         <div class="w-full h-full rounded-full bg-white flex items-center justify-center text-2xl">
-                            ${avatar}
+                            ${escapeHtml(avatar)}
                         </div>
                     </div>
                     <span class="mt-1 px-2 py-0.5 rounded-full bg-slate-900 text-white text-[10px] font-bold shadow-md whitespace-nowrap border border-white/20">
@@ -618,7 +840,6 @@
                 currentUserMarker.on('click', () => openSetupModal(true));
             }
 
-            // Real GPS Accuracy Halo (in actual meters reported by device GPS)
             const radiusMeters = Math.max(accuracy || 20, 15);
             if (accuracyCircle) {
                 accuracyCircle.setLatLng([lat, lng]);
@@ -649,9 +870,10 @@
             }
         }
 
-        // --- 5. SERVERLESS, ZERO-DATABASE PROXIMITY MESH (MQTT OVER WSS + BROADCASTCHANNEL) ---
+        // --- 6. SERVERLESS PROXIMITY MESH + REAL-TIME ONLINE/OFFLINE PRESENCE ---
         function initServerlessMesh() {
-            // A. Same-device multi-tab instant channel
+            const myId = state.currentUser.id;
+
             if ('BroadcastChannel' in window) {
                 broadcastChannel = new BroadcastChannel('geochat_live_mesh_v1');
                 broadcastChannel.onmessage = (event) => {
@@ -659,20 +881,29 @@
                 };
             }
 
-            // B. Cross-device global serverless WebSocket broker (ephemeral topics, retain: false, zero database)
             try {
+                // Configure MQTT Last Will and Testament (LWT) so if browser crashes/closes abruptly, broker broadcasts 'bye'
+                const willTopic = state.currentUser.lat !== null
+                    ? `geochat/live/v1/grid/${getGridCell(state.currentUser.lat, state.currentUser.lng).latIdx}_${getGridCell(state.currentUser.lat, state.currentUser.lng).lngIdx}`
+                    : `geochat/live/v1/grid/0_0`;
+
                 mqttClient = mqtt.connect('wss://broker.emqx.io:8084/mqtt', {
-                    clientId: 'geochat_' + EPHEMERAL_USER_ID,
+                    clientId: 'geochat_' + myId + '_' + Math.random().toString(36).slice(2, 6),
                     clean: true,
-                    keepalive: 20,
+                    keepalive: 15,
                     reconnectPeriod: 3000,
-                    connectTimeout: 10000
+                    connectTimeout: 10000,
+                    will: {
+                        topic: willTopic,
+                        payload: JSON.stringify({ type: 'bye', id: myId, ts: Date.now() }),
+                        qos: 0,
+                        retain: false
+                    }
                 });
 
                 mqttClient.on('connect', () => {
                     setMeshStatus('LIVE MESH', 'emerald');
-                    // Subscribe to personal direct-message inbox topic
-                    mqttClient.subscribe(`geochat/live/v1/dm/${EPHEMERAL_USER_ID}`);
+                    mqttClient.subscribe(`geochat/live/v1/dm/${myId}`);
                     if (state.currentUser.lat !== null) {
                         updateGeographicSubscriptions(state.currentUser.lat, state.currentUser.lng);
                         broadcastPresenceHeartbeat();
@@ -700,21 +931,39 @@
                 setMeshStatus('LOCAL TAB MODE', 'amber');
             }
 
-            // Broadcast real GPS heartbeat every 3.5 seconds
+            // Broadcast live GPS heartbeat every 3.5s while visible/active
             heartbeatInterval = setInterval(() => {
-                broadcastPresenceHeartbeat();
+                if (document.visibilityState === 'visible') {
+                    broadcastPresenceHeartbeat();
+                }
             }, 3500);
 
-            // Remove real peers that went offline or stopped broadcasting for >16 seconds
-            stalePeerCleanupInterval = setInterval(() => {
-                pruneInactivePeers();
-            }, 4000);
+            // Check every 3s for peers whose heartbeats timed out (>14s) and mark them Offline
+            offlineCheckInterval = setInterval(() => {
+                checkAndMarkOfflinePeers();
+            }, 3000);
 
-            // Send departure signal when closing tab/app
-            window.addEventListener('beforeunload', () => {
+            // Immediately broadcast offline signal when user leaves/closes/hides the site
+            const sendImmediateOfflineSignal = () => {
                 if (state.currentUser.lat !== null) {
-                    const byePacket = { type: 'bye', id: EPHEMERAL_USER_ID };
+                    const byePacket = { type: 'bye', id: state.currentUser.id, ts: Date.now() };
                     publishToAreaGrid(byePacket);
+                    // Also notify any peers we have chatted with directly
+                    Object.keys(state.peers).forEach(pid => {
+                        if (state.peers[pid].isOnline) {
+                            publishDirectPacket(pid, byePacket);
+                        }
+                    });
+                }
+            };
+
+            window.addEventListener('pagehide', sendImmediateOfflineSignal);
+            window.addEventListener('beforeunload', sendImmediateOfflineSignal);
+            document.addEventListener('visibilitychange', () => {
+                if (document.visibilityState === 'hidden') {
+                    sendImmediateOfflineSignal();
+                } else if (document.visibilityState === 'visible' && state.initialized) {
+                    broadcastPresenceHeartbeat();
                 }
             });
         }
@@ -737,7 +986,6 @@
             }
         }
 
-        // Convert GPS coordinates into ~11km (0.1 degree) grid cells for automatic local discovery
         function getGridCell(lat, lng) {
             return {
                 latIdx: Math.floor(lat * 10),
@@ -749,7 +997,6 @@
             if (!mqttClient || !mqttClient.connected) return;
             const { latIdx, lngIdx } = getGridCell(lat, lng);
 
-            // Subscribe to current cell + 8 surrounding cells (~33km x 33km live radar area)
             const desiredTopics = new Set();
             for (let dLat = -1; dLat <= 1; dLat++) {
                 for (let dLng = -1; dLng <= 1; dLng++) {
@@ -757,7 +1004,6 @@
                 }
             }
 
-            // Unsubscribe old grid cells if user traveled far
             state.subscribedTopics.forEach(topic => {
                 if (!desiredTopics.has(topic)) {
                     mqttClient.unsubscribe(topic);
@@ -765,7 +1011,6 @@
                 }
             });
 
-            // Subscribe new grid cells
             desiredTopics.forEach(topic => {
                 if (!state.subscribedTopics.has(topic)) {
                     mqttClient.subscribe(topic);
@@ -781,7 +1026,6 @@
             if (mqttClient && mqttClient.connected && state.currentUser.lat !== null) {
                 const { latIdx, lngIdx } = getGridCell(state.currentUser.lat, state.currentUser.lng);
                 const homeTopic = `geochat/live/v1/grid/${latIdx}_${lngIdx}`;
-                // retain: false guarantees zero storage on broker
                 mqttClient.publish(homeTopic, JSON.stringify(packet), { qos: 0, retain: false });
             }
         }
@@ -814,19 +1058,19 @@
         }
 
         function handleIncomingMeshPacket(packet) {
-            if (!packet || !packet.id || packet.id === EPHEMERAL_USER_ID) return;
+            if (!packet || !packet.id || packet.id === state.currentUser.id) return;
 
             if (packet.type === 'presence') {
-                const isNewPeer = !state.peers[packet.id];
-                const existing = state.peers[packet.id] || {};
+                const existing = state.peers[packet.id];
+                const wasOffline = !existing || !existing.isOnline;
                 const colorIndex = Math.abs(hashCode(packet.id)) % PEER_COLORS.length;
 
                 const distance = (state.currentUser.lat !== null && packet.lat !== null)
                     ? calculateDistanceMeters(state.currentUser.lat, state.currentUser.lng, packet.lat, packet.lng)
-                    : 0;
+                    : (existing?.distance || 0);
 
                 state.peers[packet.id] = {
-                    ...existing,
+                    ...(existing || {}),
                     id: packet.id,
                     name: String(packet.name || 'Anonymous').slice(0, 20),
                     avatar: String(packet.avatar || '😎').slice(0, 4),
@@ -836,85 +1080,123 @@
                     accuracy: Number(packet.accuracy || 25),
                     distance,
                     lastSeen: Date.now(),
-                    color: existing.color || PEER_COLORS[colorIndex]
+                    isOnline: true,
+                    color: existing?.color || PEER_COLORS[colorIndex]
                 };
 
+                savePeersToStorage();
                 renderPeerMarker(state.peers[packet.id]);
                 renderNearbyList();
+                updateActiveChatHeaderPresence(packet.id);
 
-                if (state.activeChatPeerId === packet.id) {
-                    document.getElementById('chat-peer-name').textContent = state.peers[packet.id].name;
-                    document.getElementById('chat-peer-avatar').textContent = state.peers[packet.id].avatar;
-                    document.getElementById('chat-peer-status').textContent = state.peers[packet.id].status;
-                    document.getElementById('chat-peer-distance').textContent = `${formatDistance(distance)} away`;
-                }
-
-                if (isNewPeer) {
-                    // Immediately reply with our own heartbeat so the new peer discovers us instantly
+                if (wasOffline) {
                     broadcastPresenceHeartbeat();
-                    showToast(`${state.peers[packet.id].avatar} ${state.peers[packet.id].name} appeared on your GPS radar!`, 'success');
+                    showToast(`${state.peers[packet.id].avatar} ${state.peers[packet.id].name} is now Online!`, 'success');
                 }
             } else if (packet.type === 'bye') {
-                removePeer(packet.id);
-            } else if (packet.type === 'dm' && packet.to === EPHEMERAL_USER_ID) {
-                // Ensure sender exists in peer map even if DM arrived slightly before grid heartbeat
-                if (!state.peers[packet.id] && packet.senderProfile) {
+                markPeerOffline(packet.id, true);
+            } else if (packet.type === 'dm' && packet.to === state.currentUser.id) {
+                if (packet.senderProfile) {
                     handleIncomingMeshPacket({ type: 'presence', id: packet.id, ...packet.senderProfile });
                 }
                 receiveDirectMessage(packet.id, packet.text, packet.msgType || 'text', packet.msgId);
-            } else if (packet.type === 'typing' && packet.to === EPHEMERAL_USER_ID) {
+            } else if (packet.type === 'typing' && packet.to === state.currentUser.id) {
                 if (state.activeChatPeerId === packet.id && state.peers[packet.id]) {
                     showPeerTypingIndicator(state.peers[packet.id].name);
                 }
+            } else if (packet.to === state.currentUser.id && packet.type && packet.type.startsWith('call-')) {
+                handleIncomingCallSignal(packet);
             }
         }
 
-        function pruneInactivePeers() {
+        function markPeerOffline(peerId, notify = false) {
+            const peer = state.peers[peerId];
+            if (!peer || !peer.isOnline) return;
+
+            peer.isOnline = false;
+            peer.lastSeen = Date.now();
+            savePeersToStorage();
+
+            renderPeerMarker(peer);
+            renderNearbyList();
+            updateActiveChatHeaderPresence(peerId);
+
+            if (callState.active && callState.peerId === peerId) {
+                showToast(`${peer.name} went offline. Call ended.`, 'info');
+                endCurrentCall(false, 'Disconnected');
+            } else if (notify) {
+                showToast(`${peer.avatar} ${peer.name} went offline`, 'info');
+            }
+        }
+
+        function checkAndMarkOfflinePeers() {
             const now = Date.now();
             let changed = false;
-            Object.keys(state.peers).forEach(peerId => {
-                if (now - state.peers[peerId].lastSeen > 16000) {
-                    removePeer(peerId);
+            Object.values(state.peers).forEach(peer => {
+                if (peer.isOnline && (now - peer.lastSeen > 14000)) {
+                    peer.isOnline = false;
+                    renderPeerMarker(peer);
+                    updateActiveChatHeaderPresence(peer.id);
                     changed = true;
                 }
             });
-            if (changed) renderNearbyList();
-        }
-
-        function removePeer(peerId) {
-            if (peerMarkers[peerId]) {
-                map.removeLayer(peerMarkers[peerId]);
-                delete peerMarkers[peerId];
+            if (changed) {
+                savePeersToStorage();
+                renderNearbyList();
             }
-            delete state.peers[peerId];
-            renderNearbyList();
         }
 
-        // --- 6. RENDER REAL PEER PINS & NEARBY DRAWER ---
+        function updateActiveChatHeaderPresence(peerId) {
+            if (state.activeChatPeerId !== peerId) return;
+            const peer = state.peers[peerId];
+            if (!peer) return;
+
+            document.getElementById('chat-peer-name').textContent = peer.name;
+            document.getElementById('chat-peer-avatar').textContent = peer.avatar;
+
+            const dot = document.getElementById('chat-peer-online-dot');
+            const badge = document.getElementById('chat-peer-presence-badge');
+            const sub = document.getElementById('chat-peer-status');
+
+            if (peer.isOnline) {
+                dot.className = 'absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-emerald-400 border-2 border-slate-900';
+                badge.className = 'shrink-0 text-[10px] font-bold bg-emerald-500/30 text-emerald-200 border border-emerald-400/30 px-2 py-0.5 rounded-full';
+                badge.textContent = 'Online';
+                sub.textContent = `${formatDistance(peer.distance)} away • ${peer.status}`;
+            } else {
+                dot.className = 'absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-slate-400 border-2 border-slate-900';
+                badge.className = 'shrink-0 text-[10px] font-bold bg-slate-600/60 text-slate-300 border border-slate-500/40 px-2 py-0.5 rounded-full';
+                badge.textContent = 'Offline';
+                sub.textContent = `Offline • Last seen ${formatRelativeTime(peer.lastSeen)}`;
+            }
+        }
+
+        // --- 7. RENDER PEER MAP PINS (ONLINE & OFFLINE) & PEOPLE DRAWER ---
         function renderPeerMarker(peer) {
             if (!map || isNaN(peer.lat) || isNaN(peer.lng)) return;
 
             const distLabel = formatDistance(peer.distance);
             const unread = state.unreadCounts[peer.id] || 0;
+            const isOnline = Boolean(peer.isOnline);
 
             const html = `
-                <div class="relative flex flex-col items-center cursor-pointer transition-transform duration-200 hover:scale-110" style="width: 76px; height: 78px;">
+                <div class="relative flex flex-col items-center cursor-pointer transition-all duration-200 hover:scale-110 ${isOnline ? '' : 'opacity-75'}" style="width: 82px; height: 80px;">
                     ${unread > 0 ? `
                         <span class="absolute -top-1 right-2 z-20 w-5 h-5 rounded-full bg-rose-500 text-white text-[10px] font-bold flex items-center justify-center shadow-md animate-bounce">
                             ${unread}
                         </span>
                     ` : ''}
                     <div class="relative">
-                        <div class="w-11 h-11 rounded-full bg-gradient-to-tr ${peer.color} p-0.5 shadow-lg">
-                            <div class="w-full h-full rounded-full bg-white flex items-center justify-center text-xl">
+                        <div class="w-11 h-11 rounded-full ${isOnline ? `bg-gradient-to-tr ${peer.color}` : 'bg-slate-400'} p-0.5 shadow-lg">
+                            <div class="w-full h-full rounded-full bg-white flex items-center justify-center text-xl ${isOnline ? '' : 'grayscale-[40%]'}">
                                 ${escapeHtml(peer.avatar)}
                             </div>
                         </div>
-                        <span class="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-emerald-500 border-2 border-white shadow-sm"></span>
+                        <span class="absolute bottom-0 right-0 w-3 h-3 rounded-full ${isOnline ? 'bg-emerald-500' : 'bg-slate-400'} border-2 border-white shadow-sm"></span>
                     </div>
-                    <div class="mt-1 px-2 py-0.5 rounded-full bg-white/95 backdrop-blur-sm text-slate-800 text-[10px] font-bold shadow-md border border-slate-200/80 whitespace-nowrap flex items-center gap-1">
+                    <div class="mt-1 px-2 py-0.5 rounded-full ${isOnline ? 'bg-white/95 text-slate-800 border-slate-200/80' : 'bg-slate-800/90 text-slate-200 border-slate-700'} backdrop-blur-sm text-[10px] font-bold shadow-md border whitespace-nowrap flex items-center gap-1">
                         <span>${escapeHtml(peer.name.split(' ')[0])}</span>
-                        <span class="text-blue-600 font-semibold">• ${distLabel}</span>
+                        <span class="${isOnline ? 'text-blue-600' : 'text-slate-400'} font-semibold">• ${isOnline ? distLabel : 'Offline'}</span>
                     </div>
                 </div>
             `;
@@ -922,15 +1204,16 @@
             const icon = L.divIcon({
                 html,
                 className: 'custom-div-icon',
-                iconSize: [76, 78],
-                iconAnchor: [38, 36]
+                iconSize: [82, 80],
+                iconAnchor: [41, 36]
             });
 
             if (peerMarkers[peer.id]) {
                 peerMarkers[peer.id].setLatLng([peer.lat, peer.lng]);
                 peerMarkers[peer.id].setIcon(icon);
+                peerMarkers[peer.id].setZIndexOffset(isOnline ? 500 : 100);
             } else {
-                const marker = L.marker([peer.lat, peer.lng], { icon }).addTo(map);
+                const marker = L.marker([peer.lat, peer.lng], { icon, zIndexOffset: isOnline ? 500 : 100 }).addTo(map);
                 marker.on('click', () => openChatWithPeer(peer.id));
                 peerMarkers[peer.id] = marker;
             }
@@ -942,10 +1225,11 @@
                 peer.distance = calculateDistanceMeters(state.currentUser.lat, state.currentUser.lng, peer.lat, peer.lng);
                 renderPeerMarker(peer);
             });
+            savePeersToStorage();
             renderNearbyList();
 
-            if (state.activeChatPeerId && state.peers[state.activeChatPeerId]) {
-                document.getElementById('chat-peer-distance').textContent = `${formatDistance(state.peers[state.activeChatPeerId].distance)} away`;
+            if (state.activeChatPeerId) {
+                updateActiveChatHeaderPresence(state.activeChatPeerId);
             }
         }
 
@@ -965,71 +1249,80 @@
         function renderNearbyList() {
             const container = document.getElementById('nearby-users-list');
             const badge = document.getElementById('nearby-count-badge');
+            const subtitle = document.getElementById('nearby-drawer-subtitle');
 
-            const sortedPeers = Object.values(state.peers).sort((a, b) => a.distance - b.distance);
-            badge.textContent = sortedPeers.length;
+            const allPeers = Object.values(state.peers).sort((a, b) => {
+                if (a.isOnline !== b.isOnline) return a.isOnline ? -1 : 1;
+                return a.distance - b.distance;
+            });
 
-            if (sortedPeers.length === 0) {
+            const onlineCount = allPeers.filter(p => p.isOnline).length;
+            badge.textContent = onlineCount;
+            subtitle.textContent = `${onlineCount} online now • ${allPeers.length} total saved`;
+
+            if (allPeers.length === 0) {
                 container.innerHTML = `
                     <div class="text-center py-12 px-4 space-y-3">
                         <div class="w-14 h-14 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center text-2xl mx-auto">
                             <i class="ph-bold ph-radar"></i>
                         </div>
-                        <h4 class="font-bold text-slate-800 text-sm">No other real users in range yet</h4>
+                        <h4 class="font-bold text-slate-800 text-sm">No other users discovered yet</h4>
                         <p class="text-xs text-slate-500 leading-relaxed">
-                            Your real GPS beacon is actively broadcasting. Tap <strong>Share Radar</strong> to open GeoChat Live on another phone or browser tab and watch both live GPS pins appear here!
+                            Your real GPS beacon is actively broadcasting. Tap <strong>Share Radar</strong> to open GeoChat Live on another phone or browser tab—once discovered, contacts & chats remain saved here even when they go offline!
                         </p>
                     </div>
                 `;
                 return;
             }
 
-            container.innerHTML = sortedPeers.map(peer => {
+            container.innerHTML = allPeers.map(peer => {
                 const unread = state.unreadCounts[peer.id] || 0;
+                const isOnline = Boolean(peer.isOnline);
                 return `
                     <div onclick="openChatWithPeer('${peer.id}'); toggleNearbyDrawer(false);" 
-                        class="p-3 rounded-2xl bg-white hover:bg-blue-50/60 border border-slate-100 hover:border-blue-200 shadow-sm flex items-center justify-between gap-3 cursor-pointer transition group">
+                        class="p-3 rounded-2xl ${isOnline ? 'bg-white hover:bg-blue-50/60 border-slate-100 hover:border-blue-200' : 'bg-slate-50/90 hover:bg-slate-100/80 border-slate-200/70'} border shadow-sm flex items-center justify-between gap-3 cursor-pointer transition group">
                         <div class="flex items-center gap-3 min-w-0">
                             <div class="relative shrink-0">
-                                <div class="w-11 h-11 rounded-2xl bg-gradient-to-tr ${peer.color} p-0.5">
-                                    <div class="w-full h-full rounded-[14px] bg-white flex items-center justify-center text-xl">
+                                <div class="w-11 h-11 rounded-2xl ${isOnline ? `bg-gradient-to-tr ${peer.color}` : 'bg-slate-300'} p-0.5">
+                                    <div class="w-full h-full rounded-[14px] bg-white flex items-center justify-center text-xl ${isOnline ? '' : 'opacity-70'}">
                                         ${escapeHtml(peer.avatar)}
                                     </div>
                                 </div>
-                                <span class="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-emerald-500 border-2 border-white"></span>
+                                <span class="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full ${isOnline ? 'bg-emerald-500' : 'bg-slate-400'} border-2 border-white"></span>
                             </div>
                             <div class="min-w-0">
                                 <div class="flex items-center gap-1.5">
-                                    <h4 class="font-bold text-slate-800 text-sm truncate group-hover:text-blue-700">${escapeHtml(peer.name)}</h4>
+                                    <h4 class="font-bold ${isOnline ? 'text-slate-800 group-hover:text-blue-700' : 'text-slate-600'} text-sm truncate">${escapeHtml(peer.name)}</h4>
                                     ${unread > 0 ? `<span class="px-1.5 py-0.2 bg-rose-500 text-white text-[10px] font-bold rounded-full">${unread}</span>` : ''}
                                 </div>
-                                <p class="text-xs text-slate-500 truncate">${escapeHtml(peer.status)}</p>
+                                <p class="text-xs ${isOnline ? 'text-slate-500' : 'text-slate-400'} truncate">
+                                    ${isOnline ? escapeHtml(peer.status) : `Offline • Last seen ${formatRelativeTime(peer.lastSeen)}`}
+                                </p>
                             </div>
                         </div>
-                        <div class="shrink-0 text-right">
-                            <span class="inline-block px-2.5 py-1 rounded-xl bg-slate-100 group-hover:bg-blue-100 text-slate-700 group-hover:text-blue-700 text-xs font-bold transition">
-                                ${formatDistance(peer.distance)}
+                        <div class="shrink-0 text-right flex flex-col items-end gap-1">
+                            <span class="inline-block px-2.5 py-0.5 rounded-xl ${isOnline ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-200/80 text-slate-500'} text-[11px] font-bold">
+                                ${isOnline ? 'Online' : 'Offline'}
                             </span>
+                            <span class="text-[10px] text-slate-400 font-medium">${formatDistance(peer.distance)}</span>
                         </div>
                     </div>
                 `;
             }).join('');
         }
 
-        // --- 7. REAL 1-ON-1 DIRECT MESSAGING ---
+        // --- 8. DIRECT MESSAGING & PERSISTENT CHAT HISTORY ---
         function openChatWithPeer(peerId) {
             const peer = state.peers[peerId];
             if (!peer) return;
 
             state.activeChatPeerId = peerId;
             state.unreadCounts[peerId] = 0;
+            saveMessagesToStorage();
             renderPeerMarker(peer);
             renderNearbyList();
 
-            document.getElementById('chat-peer-avatar').textContent = peer.avatar;
-            document.getElementById('chat-peer-name').textContent = peer.name;
-            document.getElementById('chat-peer-distance').textContent = `${formatDistance(peer.distance)} away`;
-            document.getElementById('chat-peer-status').textContent = peer.status;
+            updateActiveChatHeaderPresence(peerId);
             document.getElementById('typing-indicator').classList.add('hidden');
 
             if (map && !isNaN(peer.lat) && !isNaN(peer.lng)) {
@@ -1069,7 +1362,7 @@
                 container.innerHTML = `
                     <div class="text-center py-8 px-4 text-xs text-slate-400 space-y-1">
                         <p class="font-semibold text-slate-500">Direct P2P Channel Ready</p>
-                        <p>Send a real message to ${escapeHtml(peerName)}. Messages are delivered live and never saved to any database.</p>
+                        <p>Send a message or start an audio/video call with ${escapeHtml(peerName)}. Your chat history is saved locally on this device.</p>
                     </div>
                 `;
                 return;
@@ -1077,6 +1370,19 @@
 
             container.innerHTML = msgs.map(m => {
                 const isMe = m.sender === 'me';
+
+                if (m.type === 'call-log') {
+                    return `
+                        <div class="flex justify-center my-1">
+                            <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-slate-200/80 text-slate-700 text-[11px] font-semibold">
+                                <i class="ph-fill ${m.text.toLowerCase().includes('video') ? 'ph-video-camera text-blue-600' : 'ph-phone text-emerald-600'} text-sm"></i>
+                                <span>${escapeHtml(m.text)}</span>
+                                <span class="text-slate-400 font-normal">• ${m.time}</span>
+                            </div>
+                        </div>
+                    `;
+                }
+
                 if (m.type === 'gps-ping') {
                     return `
                         <div class="flex ${isMe ? 'justify-end' : 'justify-start'}">
@@ -1134,9 +1440,14 @@
             const msgId = 'msg_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
             appendChatMessage(recipientId, 'me', text, msgType, msgId);
 
+            const peer = state.peers[recipientId];
+            if (peer && !peer.isOnline) {
+                showToast(`${peer.name} is currently offline; message saved locally.`, 'info');
+            }
+
             publishDirectPacket(recipientId, {
                 type: 'dm',
-                id: EPHEMERAL_USER_ID,
+                id: state.currentUser.id,
                 to: recipientId,
                 msgId,
                 msgType,
@@ -1164,17 +1475,19 @@
         function appendChatMessage(peerId, sender, text, type = 'text', msgId = '') {
             if (!state.messages[peerId]) state.messages[peerId] = [];
             state.messages[peerId].push({
-                id: msgId,
+                id: msgId || ('evt_' + Date.now()),
                 sender,
                 text,
                 type,
                 time: formatTime(new Date())
             });
+            saveMessagesToStorage();
 
             if (state.activeChatPeerId === peerId) {
                 renderChatMessages(peerId);
             } else if (sender === 'peer') {
                 state.unreadCounts[peerId] = (state.unreadCounts[peerId] || 0) + 1;
+                saveMessagesToStorage();
                 const peer = state.peers[peerId];
                 if (peer) {
                     renderPeerMarker(peer);
@@ -1191,7 +1504,7 @@
                 lastTypingSentAt = now;
                 publishDirectPacket(state.activeChatPeerId, {
                     type: 'typing',
-                    id: EPHEMERAL_USER_ID,
+                    id: state.currentUser.id,
                     to: state.activeChatPeerId
                 });
             }
@@ -1208,17 +1521,425 @@
             }, 2500);
         }
 
-        // --- 8. SHARE LIVE RADAR LINK ---
+        // --- 9. WEBRTC REAL-TIME AUDIO & VIDEO CALLING ---
+        async function initiateWebRTCCall(mode = 'audio') {
+            const peerId = state.activeChatPeerId;
+            if (!peerId) return;
+
+            const peer = state.peers[peerId];
+            if (!peer) return;
+
+            if (!peer.isOnline) {
+                showToast(`${peer.name} is offline right now and cannot receive calls.`, 'info');
+                return;
+            }
+
+            if (callState.active) {
+                showToast('You are already in an active call.', 'info');
+                return;
+            }
+
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                showToast('Camera/Microphone access requires HTTPS or localhost.', 'info');
+                return;
+            }
+
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    audio: true,
+                    video: mode === 'video' ? { facingMode: 'user' } : false
+                });
+
+                callState.active = true;
+                callState.direction = 'outgoing';
+                callState.mode = mode;
+                callState.peerId = peerId;
+                callState.localStream = stream;
+                callState.micEnabled = true;
+                callState.camEnabled = mode === 'video';
+                callState.pendingCandidates = [];
+                callState.connectedAt = null;
+
+                showCallOverlay(peer, mode, 'outgoing');
+                setupPeerConnection(peerId);
+
+                stream.getTracks().forEach(track => {
+                    callState.pc.addTrack(track, stream);
+                });
+
+                const offer = await callState.pc.createOffer();
+                await callState.pc.setLocalDescription(offer);
+
+                publishDirectPacket(peerId, {
+                    type: 'call-offer',
+                    id: state.currentUser.id,
+                    to: peerId,
+                    mode,
+                    sdp: offer,
+                    callerProfile: {
+                        name: state.currentUser.name,
+                        avatar: state.currentUser.avatar,
+                        status: state.currentUser.status,
+                        lat: state.currentUser.lat,
+                        lng: state.currentUser.lng,
+                        accuracy: state.currentUser.accuracy
+                    }
+                });
+
+                // Auto-cancel if unanswered after 35 seconds
+                callState.ringTimeout = setTimeout(() => {
+                    if (callState.active && !callState.connectedAt) {
+                        appendChatMessage(peerId, 'system', `No answer (${mode} call)`, 'call-log');
+                        endCurrentCall(true, 'No Answer');
+                    }
+                }, 35000);
+
+            } catch (err) {
+                console.error('Failed to get local media:', err);
+                showToast(`Could not access ${mode === 'video' ? 'camera/microphone' : 'microphone'}. Check browser permissions.`, 'info');
+                cleanupCallMedia();
+            }
+        }
+
+        async function handleIncomingCallSignal(packet) {
+            const senderId = packet.id;
+
+            if (packet.type === 'call-offer') {
+                if (packet.callerProfile) {
+                    handleIncomingMeshPacket({ type: 'presence', id: senderId, ...packet.callerProfile });
+                }
+
+                // Busy check
+                if (callState.active) {
+                    publishDirectPacket(senderId, {
+                        type: 'call-reject',
+                        id: state.currentUser.id,
+                        to: senderId,
+                        reason: 'busy'
+                    });
+                    return;
+                }
+
+                const peer = state.peers[senderId] || { id: senderId, name: 'Nearby User', avatar: '😎' };
+                callState.active = true;
+                callState.direction = 'incoming';
+                callState.mode = packet.mode === 'video' ? 'video' : 'audio';
+                callState.peerId = senderId;
+                callState.pendingOffer = packet.sdp;
+                callState.pendingCandidates = [];
+                callState.connectedAt = null;
+
+                showCallOverlay(peer, callState.mode, 'incoming');
+
+                callState.ringTimeout = setTimeout(() => {
+                    if (callState.active && callState.direction === 'incoming' && !callState.connectedAt) {
+                        appendChatMessage(senderId, 'system', `Missed ${callState.mode} call`, 'call-log');
+                        endCurrentCall(false, 'Missed Call');
+                    }
+                }, 35000);
+
+            } else if (packet.type === 'call-answer') {
+                if (!callState.active || callState.peerId !== senderId || !callState.pc) return;
+                clearTimeout(callState.ringTimeout);
+
+                await callState.pc.setRemoteDescription(new RTCSessionDescription(packet.sdp));
+                for (const cand of callState.pendingCandidates) {
+                    await callState.pc.addIceCandidate(new RTCIceCandidate(cand));
+                }
+                callState.pendingCandidates = [];
+                markCallConnected();
+
+            } else if (packet.type === 'ice-candidate') {
+                if (!callState.active || callState.peerId !== senderId) return;
+                if (callState.pc && callState.pc.remoteDescription) {
+                    try {
+                        await callState.pc.addIceCandidate(new RTCIceCandidate(packet.candidate));
+                    } catch (e) {
+                        console.warn('ICE candidate error:', e);
+                    }
+                } else {
+                    callState.pendingCandidates.push(packet.candidate);
+                }
+
+            } else if (packet.type === 'call-reject') {
+                if (!callState.active || callState.peerId !== senderId) return;
+                const reasonText = packet.reason === 'busy' ? 'User is busy on another call' : 'Call declined';
+                appendChatMessage(senderId, 'system', `${reasonText} (${callState.mode})`, 'call-log');
+                showToast(reasonText, 'info');
+                endCurrentCall(false);
+
+            } else if (packet.type === 'call-end') {
+                if (!callState.active || callState.peerId !== senderId) return;
+                const summary = callState.connectedAt
+                    ? `${callState.mode === 'video' ? 'Video' : 'Voice'} call • ${formatDuration(Math.floor((Date.now() - callState.connectedAt) / 1000))}`
+                    : `Missed ${callState.mode} call`;
+                appendChatMessage(senderId, 'system', summary, 'call-log');
+                showToast('Call ended', 'info');
+                endCurrentCall(false);
+            }
+        }
+
+        async function acceptIncomingCall() {
+            if (!callState.active || callState.direction !== 'incoming' || !callState.pendingOffer) return;
+            clearTimeout(callState.ringTimeout);
+
+            const peerId = callState.peerId;
+            const mode = callState.mode;
+
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    audio: true,
+                    video: mode === 'video' ? { facingMode: 'user' } : false
+                });
+
+                callState.localStream = stream;
+                callState.micEnabled = true;
+                callState.camEnabled = mode === 'video';
+
+                document.getElementById('incoming-call-controls').classList.add('hidden');
+                document.getElementById('active-call-controls').classList.remove('hidden');
+                document.getElementById('call-status-text').textContent = 'Connecting...';
+
+                if (mode === 'video') {
+                    const localVid = document.getElementById('local-video');
+                    localVid.srcObject = stream;
+                    document.getElementById('local-video-wrapper').classList.remove('hidden');
+                    document.getElementById('btn-toggle-cam').classList.remove('hidden');
+                }
+
+                setupPeerConnection(peerId);
+                stream.getTracks().forEach(track => {
+                    callState.pc.addTrack(track, stream);
+                });
+
+                await callState.pc.setRemoteDescription(new RTCSessionDescription(callState.pendingOffer));
+                callState.pendingOffer = null;
+
+                for (const cand of callState.pendingCandidates) {
+                    await callState.pc.addIceCandidate(new RTCIceCandidate(cand));
+                }
+                callState.pendingCandidates = [];
+
+                const answer = await callState.pc.createAnswer();
+                await callState.pc.setLocalDescription(answer);
+
+                publishDirectPacket(peerId, {
+                    type: 'call-answer',
+                    id: state.currentUser.id,
+                    to: peerId,
+                    sdp: answer
+                });
+
+                markCallConnected();
+            } catch (err) {
+                console.error('Failed to accept call:', err);
+                showToast('Permission denied for microphone/camera.', 'info');
+                rejectIncomingCall();
+            }
+        }
+
+        function rejectIncomingCall() {
+            if (!callState.active) return;
+            const peerId = callState.peerId;
+            const mode = callState.mode;
+
+            publishDirectPacket(peerId, {
+                type: 'call-reject',
+                id: state.currentUser.id,
+                to: peerId,
+                reason: 'declined'
+            });
+
+            appendChatMessage(peerId, 'system', `Declined ${mode} call`, 'call-log');
+            endCurrentCall(false);
+        }
+
+        function setupPeerConnection(peerId) {
+            const pc = new RTCPeerConnection(ICE_SERVERS);
+            callState.pc = pc;
+
+            pc.onicecandidate = (event) => {
+                if (event.candidate) {
+                    publishDirectPacket(peerId, {
+                        type: 'ice-candidate',
+                        id: state.currentUser.id,
+                        to: peerId,
+                        candidate: event.candidate
+                    });
+                }
+            };
+
+            pc.ontrack = (event) => {
+                const remoteStream = event.streams[0];
+                callState.remoteStream = remoteStream;
+
+                if (callState.mode === 'video') {
+                    const remoteVideo = document.getElementById('remote-video');
+                    remoteVideo.srcObject = remoteStream;
+                    remoteVideo.classList.remove('hidden');
+                    document.getElementById('call-video-vignette').classList.remove('hidden');
+                    document.getElementById('call-center-stage').classList.add('opacity-0', 'pointer-events-none');
+                } else {
+                    const remoteAudio = document.getElementById('remote-audio');
+                    remoteAudio.srcObject = remoteStream;
+                }
+            };
+
+            pc.onconnectionstatechange = () => {
+                if (pc.connectionState === 'disconnected' || pc.connectionState === 'failed') {
+                    endCurrentCall(true);
+                }
+            };
+        }
+
+        function showCallOverlay(peer, mode, direction) {
+            const modal = document.getElementById('call-modal');
+            document.getElementById('call-peer-avatar').textContent = peer.avatar || '😎';
+            document.getElementById('call-peer-name').textContent = peer.name || 'User';
+            document.getElementById('call-type-label').textContent = mode === 'video' ? 'P2P Video Call' : 'P2P Voice Call';
+            document.getElementById('call-timer').textContent = '00:00';
+
+            document.getElementById('remote-video').classList.add('hidden');
+            document.getElementById('call-video-vignette').classList.add('hidden');
+            document.getElementById('call-center-stage').classList.remove('opacity-0', 'pointer-events-none');
+
+            const localWrapper = document.getElementById('local-video-wrapper');
+            const camBtn = document.getElementById('btn-toggle-cam');
+
+            if (mode === 'video' && callState.localStream) {
+                document.getElementById('local-video').srcObject = callState.localStream;
+                localWrapper.classList.remove('hidden');
+                camBtn.classList.remove('hidden');
+            } else {
+                localWrapper.classList.add('hidden');
+                camBtn.classList.add('hidden');
+            }
+
+            if (direction === 'incoming') {
+                document.getElementById('call-status-text').textContent = `Incoming ${mode} call...`;
+                document.getElementById('incoming-call-controls').classList.remove('hidden');
+                document.getElementById('active-call-controls').classList.add('hidden');
+                document.getElementById('accept-call-icon').className = mode === 'video' ? 'ph-fill ph-video-camera text-2xl' : 'ph-fill ph-phone text-2xl';
+            } else {
+                document.getElementById('call-status-text').textContent = 'Ringing...';
+                document.getElementById('incoming-call-controls').classList.add('hidden');
+                document.getElementById('active-call-controls').classList.remove('hidden');
+            }
+
+            // Reset mic & cam button visuals
+            document.getElementById('icon-call-mic').className = 'ph-fill ph-microphone text-xl';
+            document.getElementById('btn-toggle-mic').classList.remove('bg-rose-600');
+            document.getElementById('icon-call-cam').className = 'ph-fill ph-video-camera text-xl';
+            document.getElementById('btn-toggle-cam').classList.remove('bg-rose-600');
+
+            modal.classList.remove('hidden');
+        }
+
+        function markCallConnected() {
+            if (callState.connectedAt) return;
+            callState.connectedAt = Date.now();
+            document.getElementById('call-status-text').textContent = 'Connected';
+
+            clearInterval(callState.timerInterval);
+            callState.timerInterval = setInterval(() => {
+                const elapsedSec = Math.floor((Date.now() - callState.connectedAt) / 1000);
+                document.getElementById('call-timer').textContent = formatDuration(elapsedSec);
+            }, 1000);
+        }
+
+        function toggleCallMic() {
+            if (!callState.localStream) return;
+            callState.micEnabled = !callState.micEnabled;
+            callState.localStream.getAudioTracks().forEach(t => { t.enabled = callState.micEnabled; });
+
+            const btn = document.getElementById('btn-toggle-mic');
+            const icon = document.getElementById('icon-call-mic');
+            if (callState.micEnabled) {
+                icon.className = 'ph-fill ph-microphone text-xl';
+                btn.classList.remove('bg-rose-600');
+            } else {
+                icon.className = 'ph-fill ph-microphone-slash text-xl';
+                btn.classList.add('bg-rose-600');
+            }
+        }
+
+        function toggleCallCamera() {
+            if (!callState.localStream) return;
+            callState.camEnabled = !callState.camEnabled;
+            callState.localStream.getVideoTracks().forEach(t => { t.enabled = callState.camEnabled; });
+
+            const btn = document.getElementById('btn-toggle-cam');
+            const icon = document.getElementById('icon-call-cam');
+            if (callState.camEnabled) {
+                icon.className = 'ph-fill ph-video-camera text-xl';
+                btn.classList.remove('bg-rose-600');
+            } else {
+                icon.className = 'ph-fill ph-video-camera-slash text-xl';
+                btn.classList.add('bg-rose-600');
+            }
+        }
+
+        function endCurrentCall(notifyPeer = true, customReason = '') {
+            const peerId = callState.peerId;
+            const mode = callState.mode;
+            const wasConnected = Boolean(callState.connectedAt);
+            const durationSec = wasConnected ? Math.floor((Date.now() - callState.connectedAt) / 1000) : 0;
+
+            if (notifyPeer && peerId) {
+                publishDirectPacket(peerId, {
+                    type: 'call-end',
+                    id: state.currentUser.id,
+                    to: peerId
+                });
+
+                const logLabel = customReason
+                    ? `${customReason} (${mode})`
+                    : wasConnected
+                        ? `${mode === 'video' ? 'Video' : 'Voice'} call • ${formatDuration(durationSec)}`
+                        : `Canceled ${mode} call`;
+                appendChatMessage(peerId, 'system', logLabel, 'call-log');
+            }
+
+            cleanupCallMedia();
+            document.getElementById('call-modal').classList.add('hidden');
+        }
+
+        function cleanupCallMedia() {
+            clearTimeout(callState.ringTimeout);
+            clearInterval(callState.timerInterval);
+
+            if (callState.localStream) {
+                callState.localStream.getTracks().forEach(t => t.stop());
+            }
+            if (callState.pc) {
+                try { callState.pc.close(); } catch (e) {}
+            }
+
+            document.getElementById('remote-video').srcObject = null;
+            document.getElementById('remote-audio').srcObject = null;
+            document.getElementById('local-video').srcObject = null;
+
+            callState.active = false;
+            callState.direction = null;
+            callState.peerId = null;
+            callState.pc = null;
+            callState.localStream = null;
+            callState.remoteStream = null;
+            callState.pendingOffer = null;
+            callState.pendingCandidates = [];
+            callState.connectedAt = null;
+        }
+
+        // --- 10. SHARE LIVE RADAR LINK ---
         function shareLiveRadarLink() {
             const url = window.location.href;
             if (navigator.share && url.startsWith('http')) {
                 navigator.share({
-                    title: 'GeoChat Live — Real GPS Proximity Chat',
-                    text: `Join me on GeoChat Live! Open this link to see my real GPS pin and chat directly.`,
+                    title: 'GeoChat Live — Real GPS Proximity Chat & Calls',
+                    text: `Join me on GeoChat Live! Open this link to see my real GPS pin, chat, and make audio/video calls.`,
                     url
                 }).catch(() => {});
             } else {
-                // Fallback copy to clipboard via execCommand for iframe/mobile compatibility
                 const tempInput = document.createElement('input');
                 tempInput.value = url;
                 document.body.appendChild(tempInput);
@@ -1233,7 +1954,7 @@
             }
         }
 
-        // --- 9. GEOMETRY & UI HELPERS ---
+        // --- 11. GEOMETRY, TIME & UI HELPERS ---
         function calculateDistanceMeters(lat1, lon1, lat2, lon2) {
             const R = 6371e3;
             const φ1 = lat1 * Math.PI / 180;
@@ -1255,6 +1976,24 @@
 
         function formatTime(date) {
             return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        }
+
+        function formatDuration(totalSeconds) {
+            const mins = String(Math.floor(totalSeconds / 60)).padStart(2, '0');
+            const secs = String(totalSeconds % 60).padStart(2, '0');
+            return `${mins}:${secs}`;
+        }
+
+        function formatRelativeTime(timestamp) {
+            if (!timestamp) return 'recently';
+            const diffSec = Math.max(1, Math.floor((Date.now() - timestamp) / 1000));
+            if (diffSec < 60) return 'just now';
+            const diffMin = Math.floor(diffSec / 60);
+            if (diffMin < 60) return `${diffMin}m ago`;
+            const diffHr = Math.floor(diffMin / 60);
+            if (diffHr < 24) return `${diffHr}h ago`;
+            const diffDay = Math.floor(diffHr / 24);
+            return `${diffDay}d ago`;
         }
 
         function hashCode(str) {
